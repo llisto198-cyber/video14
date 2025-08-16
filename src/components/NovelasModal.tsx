@@ -96,7 +96,6 @@ export function NovelasModal({ isOpen, onClose }: NovelasModalProps) {
     }, 0);
     
     const transferFee = transferTotal - transferBaseTotal;
-    const transferTotal = transferBaseTotal + transferFee;
     
     const grandTotal = cashTotal + transferTotal;
     
