@@ -1,4 +1,4 @@
-import { BASE_URL, API_OPTIONS } from '../config/api';
+import { BASE_URL, API_OPTIONS, API_KEY } from '../config/api';
 import type { Movie, TVShow, MovieDetails, TVShowDetails, Video, APIResponse, Genre, Cast, CastMember } from '../types/movie';
 
 class TMDBService {
