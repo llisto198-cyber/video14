@@ -5,6 +5,7 @@ export interface AdminConfig {
     transferFeePercentage: number;
   };
   novelas: NovelasConfig[];
+  deliveryZones: DeliveryZoneConfig[];
 }
 
 export interface NovelasConfig {
@@ -18,6 +19,13 @@ export interface NovelasConfig {
   descripcion?: string;
 }
 
+export interface DeliveryZoneConfig {
+  id: number;
+  name: string;
+  fullPath: string;
+  cost: number;
+  active: boolean;
+}
 export interface AdminState {
   isAuthenticated: boolean;
   config: AdminConfig;

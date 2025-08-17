@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import type { AdminConfig, AdminState, NovelasConfig } from '../types/admin';
+import type { AdminConfig, AdminState, NovelasConfig, DeliveryZoneConfig } from '../types/admin';
 
 interface AdminContextType {
   state: AdminState;
@@ -9,6 +9,9 @@ interface AdminContextType {
   addNovela: (novela: Omit<NovelasConfig, 'id'>) => void;
   updateNovela: (id: number, novela: Partial<NovelasConfig>) => void;
   deleteNovela: (id: number) => void;
+  addDeliveryZone: (zone: Omit<DeliveryZoneConfig, 'id'>) => void;
+  updateDeliveryZone: (id: number, zone: Partial<DeliveryZoneConfig>) => void;
+  deleteDeliveryZone: (id: number) => void;
   exportConfig: () => string;
   importConfig: (configJson: string) => boolean;
   resetToDefaults: () => void;
@@ -21,6 +24,9 @@ type AdminAction =
   | { type: 'ADD_NOVELA'; payload: NovelasConfig }
   | { type: 'UPDATE_NOVELA'; payload: { id: number; novela: Partial<NovelasConfig> } }
   | { type: 'DELETE_NOVELA'; payload: number }
+  | { type: 'ADD_DELIVERY_ZONE'; payload: DeliveryZoneConfig }
+  | { type: 'UPDATE_DELIVERY_ZONE'; payload: { id: number; zone: Partial<DeliveryZoneConfig> } }
+  | { type: 'DELETE_DELIVERY_ZONE'; payload: number }
   | { type: 'LOAD_CONFIG'; payload: AdminConfig }
   | { type: 'RESET_CONFIG' };
 
@@ -41,6 +47,31 @@ const defaultConfig: AdminConfig = {
     { id: 8, titulo: "Pasión de Gavilanes", genero: "Drama/Romance", capitulos: 188, año: 2003, costoEfectivo: 940, costoTransferencia: 1034 },
     { id: 9, titulo: "Yo Soy Betty, la Fea", genero: "Comedia/Romance", capitulos: 335, año: 1999, costoEfectivo: 1675, costoTransferencia: 1843 },
     { id: 10, titulo: "El Cuerpo del Deseo", genero: "Drama/Fantasía", capitulos: 178, año: 2005, costoEfectivo: 890, costoTransferencia: 979 }
+  ],
+  deliveryZones: [
+    { id: 1, name: 'Por favor seleccionar su Barrio/Zona', fullPath: 'Por favor seleccionar su Barrio/Zona', cost: 0, active: true },
+    { id: 2, name: 'Nuevo Vista Alegre', fullPath: 'Santiago de Cuba > Santiago de Cuba > Nuevo Vista Alegre', cost: 100, active: true },
+    { id: 3, name: 'Vista Alegre', fullPath: 'Santiago de Cuba > Santiago de Cuba > Vista Alegre', cost: 300, active: true },
+    { id: 4, name: 'Reparto Sueño', fullPath: 'Santiago de Cuba > Santiago de Cuba > Reparto Sueño', cost: 250, active: true },
+    { id: 5, name: 'San Pedrito', fullPath: 'Santiago de Cuba > Santiago de Cuba > San Pedrito', cost: 150, active: true },
+    { id: 6, name: 'Altamira', fullPath: 'Santiago de Cuba > Santiago de Cuba > Altamira', cost: 300, active: true },
+    { id: 7, name: 'Micro 7, 8 , 9', fullPath: 'Santiago de Cuba > Santiago de Cuba > Micro 7, 8 , 9', cost: 150, active: true },
+    { id: 8, name: 'Alameda', fullPath: 'Santiago de Cuba > Santiago de Cuba > Alameda', cost: 150, active: true },
+    { id: 9, name: 'El Caney', fullPath: 'Santiago de Cuba > Santiago de Cuba > El Caney', cost: 800, active: true },
+    { id: 10, name: 'Quintero', fullPath: 'Santiago de Cuba > Santiago de Cuba > Quintero', cost: 200, active: true },
+    { id: 11, name: 'Marimon', fullPath: 'Santiago de Cuba > Santiago de Cuba > Marimon', cost: 100, active: true },
+    { id: 12, name: 'Los cangrejitos', fullPath: 'Santiago de Cuba > Santiago de Cuba > Los cangrejitos', cost: 150, active: true },
+    { id: 13, name: 'Trocha', fullPath: 'Santiago de Cuba > Santiago de Cuba > Trocha', cost: 200, active: true },
+    { id: 14, name: 'Versalles', fullPath: 'Santiago de Cuba > Santiago de Cuba > Versalles', cost: 800, active: true },
+    { id: 15, name: 'Reparto Portuondo', fullPath: 'Santiago de Cuba > Santiago de Cuba > Reparto Portuondo', cost: 600, active: true },
+    { id: 16, name: '30 de Noviembre', fullPath: 'Santiago de Cuba > Santiago de Cuba > 30 de Noviembre', cost: 600, active: true },
+    { id: 17, name: 'Rajayoga', fullPath: 'Santiago de Cuba > Santiago de Cuba > Rajayoga', cost: 800, active: true },
+    { id: 18, name: 'Antonio Maceo', fullPath: 'Santiago de Cuba > Santiago de Cuba > Antonio Maceo', cost: 600, active: true },
+    { id: 19, name: 'Los Pinos', fullPath: 'Santiago de Cuba > Santiago de Cuba > Los Pinos', cost: 200, active: true },
+    { id: 20, name: 'Distrito José Martí', fullPath: 'Santiago de Cuba > Santiago de Cuba > Distrito José Martí', cost: 100, active: true },
+    { id: 21, name: 'Cobre', fullPath: 'Santiago de Cuba > Santiago de Cuba > Cobre', cost: 800, active: true },
+    { id: 22, name: 'El Parque Céspedes', fullPath: 'Santiago de Cuba > Santiago de Cuba > El Parque Céspedes', cost: 200, active: true },
+    { id: 23, name: 'Carretera del Morro', fullPath: 'Santiago de Cuba > Santiago de Cuba > Carretera del Morro', cost: 300, active: true }
   ]
 };
 
@@ -77,6 +108,27 @@ function adminReducer(state: AdminState, action: AdminAction): AdminState {
       const configWithDeletedNovela = { ...state.config, novelas: filteredNovelas };
       localStorage.setItem('adminConfig', JSON.stringify(configWithDeletedNovela));
       return { ...state, config: configWithDeletedNovela };
+    case 'ADD_DELIVERY_ZONE':
+      const configWithNewZone = {
+        ...state.config,
+        deliveryZones: [...state.config.deliveryZones, action.payload]
+      };
+      localStorage.setItem('adminConfig', JSON.stringify(configWithNewZone));
+      return { ...state, config: configWithNewZone };
+    case 'UPDATE_DELIVERY_ZONE':
+      const updatedZones = state.config.deliveryZones.map(zone =>
+        zone.id === action.payload.id
+          ? { ...zone, ...action.payload.zone }
+          : zone
+      );
+      const configWithUpdatedZone = { ...state.config, deliveryZones: updatedZones };
+      localStorage.setItem('adminConfig', JSON.stringify(configWithUpdatedZone));
+      return { ...state, config: configWithUpdatedZone };
+    case 'DELETE_DELIVERY_ZONE':
+      const filteredZones = state.config.deliveryZones.filter(zone => zone.id !== action.payload);
+      const configWithDeletedZone = { ...state.config, deliveryZones: filteredZones };
+      localStorage.setItem('adminConfig', JSON.stringify(configWithDeletedZone));
+      return { ...state, config: configWithDeletedZone };
     case 'LOAD_CONFIG':
       return { ...state, config: action.payload };
     case 'RESET_CONFIG':
@@ -98,6 +150,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     if (savedConfig) {
       try {
         const config = JSON.parse(savedConfig);
+        // Ensure deliveryZones exists for backward compatibility
+        if (!config.deliveryZones) {
+          config.deliveryZones = defaultConfig.deliveryZones;
+        }
         dispatch({ type: 'LOAD_CONFIG', payload: config });
       } catch (error) {
         console.error('Error loading admin config:', error);
@@ -135,6 +191,19 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'DELETE_NOVELA', payload: id });
   };
 
+  const addDeliveryZone = (zone: Omit<DeliveryZoneConfig, 'id'>) => {
+    const newId = Math.max(...state.config.deliveryZones.map(z => z.id), 0) + 1;
+    const zoneWithId = { ...zone, id: newId };
+    dispatch({ type: 'ADD_DELIVERY_ZONE', payload: zoneWithId });
+  };
+
+  const updateDeliveryZone = (id: number, zone: Partial<DeliveryZoneConfig>) => {
+    dispatch({ type: 'UPDATE_DELIVERY_ZONE', payload: { id, zone } });
+  };
+
+  const deleteDeliveryZone = (id: number) => {
+    dispatch({ type: 'DELETE_DELIVERY_ZONE', payload: id });
+  };
   const exportConfig = (): string => {
     const exportData = {
       config: state.config,
@@ -147,7 +216,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const importConfig = (configJson: string): boolean => {
     try {
       const importData = JSON.parse(configJson);
-      if (importData.config && importData.config.pricing && importData.config.novelas) {
+      if (importData.config && importData.config.pricing && importData.config.novelas && importData.config.deliveryZones) {
         dispatch({ type: 'LOAD_CONFIG', payload: importData.config });
         localStorage.setItem('adminConfig', JSON.stringify(importData.config));
         return true;
@@ -172,6 +241,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       addNovela,
       updateNovela,
       deleteNovela,
+      addDeliveryZone,
+      updateDeliveryZone,
+      deleteDeliveryZone,
       exportConfig,
       importConfig,
       resetToDefaults

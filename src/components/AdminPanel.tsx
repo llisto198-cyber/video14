@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { X, Settings, DollarSign, BookOpen, Download, Upload, RotateCcw, Save, Plus, Edit3, Trash2, Eye, EyeOff } from 'lucide-react';
+import { X, Settings, DollarSign, BookOpen, Download, Upload, RotateCcw, Save, Plus, Edit3, Trash2, Eye, EyeOff, MapPin } from 'lucide-react';
 import { useAdmin } from '../context/AdminContext';
-import type { NovelasConfig } from '../types/admin';
+import type { NovelasConfig, DeliveryZoneConfig } from '../types/admin';
 
 interface AdminPanelProps {
   isOpen: boolean;
@@ -9,8 +9,8 @@ interface AdminPanelProps {
 }
 
 export function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
-  const { state, logout, updatePricing, addNovela, updateNovela, deleteNovela, exportConfig, importConfig, resetToDefaults } = useAdmin();
-  const [activeTab, setActiveTab] = useState<'pricing' | 'novelas' | 'backup'>('pricing');
+  const { state, logout, updatePricing, addNovela, updateNovela, deleteNovela, addDeliveryZone, updateDeliveryZone, deleteDeliveryZone, exportConfig, importConfig, resetToDefaults } = useAdmin();
+  const [activeTab, setActiveTab] = useState<'pricing' | 'novelas' | 'delivery' | 'backup'>('pricing');
   const [showPassword, setShowPassword] = useState(false);
   
   // Pricing form state
@@ -29,6 +29,15 @@ export function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
   const [editingNovela, setEditingNovela] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Delivery zones form state
+  const [deliveryForm, setDeliveryForm] = useState<Partial<DeliveryZoneConfig>>({
+    name: '',
+    fullPath: '',
+    cost: 0,
+    active: true
+  });
+  const [editingZone, setEditingZone] = useState<number | null>(null);
+  const [zoneSearchTerm, setZoneSearchTerm] = useState('');
   // Backup state
   const [importData, setImportData] = useState('');
 
@@ -78,6 +87,41 @@ export function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
     }
   };
 
+  const handleDeliverySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingZone) {
+      updateDeliveryZone(editingZone, deliveryForm);
+      setEditingZone(null);
+      alert('Zona de entrega actualizada correctamente');
+    } else {
+      if (deliveryForm.name && deliveryForm.fullPath !== undefined && deliveryForm.cost !== undefined) {
+        const fullPath = deliveryForm.fullPath || `Santiago de Cuba > Santiago de Cuba > ${deliveryForm.name}`;
+        addDeliveryZone({ ...deliveryForm, fullPath } as Omit<DeliveryZoneConfig, 'id'>);
+        alert('Zona de entrega agregada correctamente');
+      } else {
+        alert('Por favor complete todos los campos obligatorios');
+        return;
+      }
+    }
+    setDeliveryForm({
+      name: '',
+      fullPath: '',
+      cost: 0,
+      active: true
+    });
+  };
+
+  const handleEditZone = (zone: DeliveryZoneConfig) => {
+    setDeliveryForm(zone);
+    setEditingZone(zone.id);
+  };
+
+  const handleDeleteZone = (id: number) => {
+    if (confirm('¿Está seguro de que desea eliminar esta zona de entrega?')) {
+      deleteDeliveryZone(id);
+      alert('Zona de entrega eliminada correctamente');
+    }
+  };
   const handleExport = () => {
     const configData = exportConfig();
     const blob = new Blob([configData], { type: 'application/json' });
@@ -115,6 +159,10 @@ export function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
     novela.genero.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const filteredZones = state.config.deliveryZones.filter(zone =>
+    zone.name.toLowerCase().includes(zoneSearchTerm.toLowerCase()) ||
+    zone.fullPath.toLowerCase().includes(zoneSearchTerm.toLowerCase())
+  );
   const calculateTransferPrice = (basePrice: number) => {
     return Math.round(basePrice * (1 + pricingForm.transferFeePercentage / 100));
   };
@@ -153,7 +201,7 @@ export function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
 
         {/* Navigation Tabs */}
         <div className="bg-gray-50 border-b border-gray-200">
-          <div className="flex space-x-1 p-1">
+          <div className="flex space-x-1 p-1 overflow-x-auto">
             <button
               onClick={() => setActiveTab('pricing')}
               className={`flex-1 px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center ${
@@ -175,6 +223,17 @@ export function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
             >
               <BookOpen className="h-5 w-5 mr-2" />
               Gestión de Novelas
+            </button>
+            <button
+              onClick={() => setActiveTab('delivery')}
+              className={`flex-1 px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center ${
+                activeTab === 'delivery'
+                  ? 'bg-white text-indigo-600 shadow-sm'
+                  : 'text-gray-600 hover:text-indigo-600 hover:bg-white/50'
+              }`}
+            >
+              <MapPin className="h-5 w-5 mr-2" />
+              Zonas de Entrega
             </button>
             <button
               onClick={() => setActiveTab('backup')}
@@ -506,6 +565,171 @@ export function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
             </div>
           )}
 
+          {/* Delivery Zones Tab */}
+          {activeTab === 'delivery' && (
+            <div className="p-6">
+              <div className="max-w-7xl mx-auto">
+                <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-2xl p-6 mb-6 border border-green-200">
+                  <h3 className="text-2xl font-bold text-green-900 mb-4 flex items-center">
+                    <MapPin className="h-6 w-6 mr-3" />
+                    Gestión de Zonas de Entrega
+                  </h3>
+                  <p className="text-green-700 mb-6">
+                    Administre las zonas de entrega disponibles: agregar, editar, eliminar y configurar costos.
+                  </p>
+
+                  {/* Add/Edit Form */}
+                  <form onSubmit={handleDeliverySubmit} className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm mb-6">
+                    <h4 className="text-lg font-bold text-gray-900 mb-4">
+                      {editingZone ? 'Editar Zona de Entrega' : 'Agregar Nueva Zona de Entrega'}
+                    </h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Nombre de la Zona *</label>
+                        <input
+                          type="text"
+                          value={deliveryForm.name || ''}
+                          onChange={(e) => setDeliveryForm(prev => ({ ...prev, name: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                          placeholder="Ej: Vista Alegre"
+                          required
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Ruta Completa</label>
+                        <input
+                          type="text"
+                          value={deliveryForm.fullPath || ''}
+                          onChange={(e) => setDeliveryForm(prev => ({ ...prev, fullPath: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                          placeholder="Santiago de Cuba > Santiago de Cuba > Vista Alegre"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Si se deja vacío, se generará automáticamente</p>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Costo de Entrega (CUP) *</label>
+                        <input
+                          type="number"
+                          value={deliveryForm.cost || ''}
+                          onChange={(e) => setDeliveryForm(prev => ({ ...prev, cost: parseInt(e.target.value) || 0 }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                          min="0"
+                          required
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+                        <select
+                          value={deliveryForm.active ? 'true' : 'false'}
+                          onChange={(e) => setDeliveryForm(prev => ({ ...prev, active: e.target.value === 'true' }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                        >
+                          <option value="true">Activa</option>
+                          <option value="false">Inactiva</option>
+                        </select>
+                      </div>
+                    </div>
+                    
+                    <div className="flex space-x-4">
+                      <button
+                        type="submit"
+                        className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center"
+                      >
+                        {editingZone ? <Save className="h-4 w-4 mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                        {editingZone ? 'Actualizar Zona' : 'Agregar Zona'}
+                      </button>
+                      
+                      {editingZone && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingZone(null);
+                            setDeliveryForm({
+                              name: '',
+                              fullPath: '',
+                              cost: 0,
+                              active: true
+                            });
+                          }}
+                          className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                      )}
+                    </div>
+                  </form>
+
+                  {/* Search */}
+                  <div className="mb-6">
+                    <input
+                      type="text"
+                      placeholder="Buscar zonas por nombre o ruta..."
+                      value={zoneSearchTerm}
+                      onChange={(e) => setZoneSearchTerm(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+
+                  {/* Zones List */}
+                  <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                    <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                      <h4 className="text-lg font-bold text-gray-900">
+                        Zonas de Entrega ({filteredZones.length} zonas)
+                      </h4>
+                    </div>
+                    
+                    <div className="max-h-96 overflow-y-auto">
+                      {filteredZones.map((zone) => (
+                        <div key={zone.id} className="p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <h5 className="font-semibold text-gray-900 mb-1">{zone.name}</h5>
+                              <p className="text-sm text-gray-600 mb-2">{zone.fullPath}</p>
+                              <div className="flex space-x-4 text-sm">
+                                <span className="text-green-600 font-medium">
+                                  Costo: ${zone.cost.toLocaleString()} CUP
+                                </span>
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  zone.active 
+                                    ? 'bg-green-100 text-green-700' 
+                                    : 'bg-red-100 text-red-700'
+                                }`}>
+                                  {zone.active ? 'Activa' : 'Inactiva'}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center space-x-2 ml-4">
+                              <button
+                                onClick={() => handleEditZone(zone)}
+                                className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-colors"
+                                title="Editar zona"
+                              >
+                                <Edit3 className="h-4 w-4" />
+                              </button>
+                              {zone.id !== 1 && ( // No permitir eliminar la zona por defecto
+                                <button
+                                  onClick={() => handleDeleteZone(zone.id)}
+                                  className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-colors"
+                                  title="Eliminar zona"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           {/* Backup Tab */}
           {activeTab === 'backup' && (
             <div className="p-6">
@@ -516,7 +740,7 @@ export function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
                     Sistema de Backup y Restauración
                   </h3>
                   <p className="text-green-700 mb-6">
-                    Exporte e importe la configuración completa del sistema para crear respaldos o migrar configuraciones.
+                    Exporte e importe la configuración completa del sistema (precios, novelas y zonas de entrega) para crear respaldos o migrar configuraciones.
                   </p>
 
                   <div className="space-y-6">
@@ -527,7 +751,7 @@ export function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
                         Exportar Configuración
                       </h4>
                       <p className="text-gray-600 mb-4">
-                        Descargue un archivo JSON con toda la configuración actual del sistema.
+                        Descargue un archivo JSON con toda la configuración actual del sistema (precios, novelas y zonas de entrega).
                       </p>
                       <button
                         onClick={handleExport}
@@ -571,7 +795,7 @@ export function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
                         Restaurar Configuración por Defecto
                       </h4>
                       <p className="text-red-700 mb-4">
-                        <strong>¡Atención!</strong> Esta acción restaurará todos los valores a su configuración original y eliminará todas las personalizaciones.
+                        <strong>¡Atención!</strong> Esta acción restaurará todos los valores (precios, novelas y zonas de entrega) a su configuración original y eliminará todas las personalizaciones.
                       </p>
                       <button
                         onClick={handleReset}
