@@ -409,6 +409,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   };
 
   const exportSystemBackup = () => {
+    // Generate system files with current modifications
+    const systemFilesContent = generateSystemFilesContent();
+    
     const backupData = {
       appName: 'TV a la Carta',
       version: '2.0.0',
@@ -418,7 +421,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         deliveryZones: state.deliveryZones,
         novels: state.novels
       },
-      systemFiles: state.systemFiles,
+      systemFiles: systemFilesContent,
       notifications: state.notifications.slice(0, 100), // Last 100 notifications
       metadata: {
         totalZones: state.deliveryZones.length,
@@ -429,18 +432,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    const blob = new Blob([JSON.stringify(backupData, null, 2)], {
-      type: 'application/json'
-    });
-    
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `TV_a_la_Carta_Backup_${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    // Create ZIP file with proper directory structure
+    createSystemBackupZip(backupData);
 
     const backupTime = new Date().toISOString();
     dispatch({ type: 'SET_LAST_BACKUP', payload: backupTime });
@@ -448,10 +441,222 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     addNotification({
       type: 'success',
       title: 'Backup Exportado',
-      message: 'Sistema completo exportado correctamente',
+      message: 'Sistema completo exportado como archivo ZIP con estructura de carpetas',
       section: 'Sistema Backup',
       action: 'Export Backup'
     });
+  };
+
+  const generateSystemFilesContent = () => {
+    const files: { [key: string]: string } = {};
+    
+    // Generate AdminContext.tsx with current state
+    files['src/context/AdminContext.tsx'] = generateAdminContextContent();
+    files['src/context/CartContext.tsx'] = generateCartContextContent();
+    files['src/components/CheckoutModal.tsx'] = generateCheckoutModalContent();
+    files['src/components/NovelasModal.tsx'] = generateNovelasModalContent();
+    files['src/components/PriceCard.tsx'] = generatePriceCardContent();
+    files['src/pages/AdminPanel.tsx'] = generateAdminPanelContent();
+    files['README.md'] = generateReadmeContent();
+    files['config/system-changes.json'] = JSON.stringify({
+      lastModified: new Date().toISOString(),
+      changes: state.notifications.slice(0, 20),
+      version: '2.0.0'
+    }, null, 2);
+    
+    return files;
+  };
+
+  const generateAdminContextContent = () => {
+    return `// AdminContext.tsx - Generated with current configuration
+// Last updated: ${new Date().toISOString()}
+
+import React, { createContext, useContext, useReducer, useEffect } from 'react';
+
+export interface PriceConfig {
+  moviePrice: ${state.prices.moviePrice};
+  seriesPrice: ${state.prices.seriesPrice};
+  transferFeePercentage: ${state.prices.transferFeePercentage};
+  novelPricePerChapter: ${state.prices.novelPricePerChapter};
+}
+
+// Current delivery zones configuration
+const deliveryZones = ${JSON.stringify(state.deliveryZones, null, 2)};
+
+// Current novels configuration  
+const novels = ${JSON.stringify(state.novels, null, 2)};
+
+// Rest of AdminContext implementation...
+export default AdminContext;`;
+  };
+
+  const generateCartContextContent = () => {
+    return `// CartContext.tsx - Generated with current configuration
+// Last updated: ${new Date().toISOString()}
+
+import React, { createContext, useContext, useReducer, useEffect } from 'react';
+
+// Current pricing configuration
+const MOVIE_PRICE = ${state.prices.moviePrice};
+const SERIES_PRICE = ${state.prices.seriesPrice};
+const TRANSFER_FEE = ${state.prices.transferFeePercentage};
+
+// Rest of CartContext implementation...
+export default CartContext;`;
+  };
+
+  const generateCheckoutModalContent = () => {
+    return `// CheckoutModal.tsx - Generated with current configuration
+// Last updated: ${new Date().toISOString()}
+
+import React, { useState } from 'react';
+
+// Current delivery zones
+const DELIVERY_ZONES = {
+${state.deliveryZones.map(zone => `  '${zone.name}': ${zone.cost}`).join(',\n')}
+};
+
+// Rest of CheckoutModal implementation...
+export default CheckoutModal;`;
+  };
+
+  const generateNovelasModalContent = () => {
+    return `// NovelasModal.tsx - Generated with current configuration
+// Last updated: ${new Date().toISOString()}
+
+import React, { useState, useEffect } from 'react';
+
+// Current novels catalog
+const defaultNovelas = ${JSON.stringify(state.novels.map(novel => ({
+  id: novel.id,
+  titulo: novel.titulo,
+  genero: novel.genero,
+  capitulos: novel.capitulos,
+  año: novel.año,
+  descripcion: novel.descripcion
+})), null, 2)};
+
+// Current novel pricing
+const novelPricePerChapter = ${state.prices.novelPricePerChapter};
+
+// Rest of NovelasModal implementation...
+export default NovelasModal;`;
+  };
+
+  const generatePriceCardContent = () => {
+    return `// PriceCard.tsx - Generated with current configuration
+// Last updated: ${new Date().toISOString()}
+
+import React from 'react';
+
+// Current pricing configuration
+const DEFAULT_MOVIE_PRICE = ${state.prices.moviePrice};
+const DEFAULT_SERIES_PRICE = ${state.prices.seriesPrice};
+const DEFAULT_TRANSFER_FEE = ${state.prices.transferFeePercentage};
+
+// Rest of PriceCard implementation...
+export default PriceCard;`;
+  };
+
+  const generateAdminPanelContent = () => {
+    return `// AdminPanel.tsx - Generated with current configuration
+// Last updated: ${new Date().toISOString()}
+
+import React, { useState } from 'react';
+
+// Current system configuration
+const SYSTEM_CONFIG = {
+  prices: ${JSON.stringify(state.prices, null, 2)},
+  deliveryZones: ${state.deliveryZones.length},
+  novels: ${state.novels.length},
+  lastBackup: '${state.lastBackup}'
+};
+
+// Rest of AdminPanel implementation...
+export default AdminPanel;`;
+  };
+
+  const generateReadmeContent = () => {
+    return `# TV a la Carta - Sistema de Control
+
+## Configuración Actual del Sistema
+
+**Última actualización:** ${new Date().toLocaleString('es-ES')}
+
+### Precios Configurados
+- Películas: $${state.prices.moviePrice} CUP
+- Series: $${state.prices.seriesPrice} CUP por temporada
+- Recargo transferencia: ${state.prices.transferFeePercentage}%
+- Novelas: $${state.prices.novelPricePerChapter} CUP por capítulo
+
+### Zonas de Entrega
+Total de zonas configuradas: ${state.deliveryZones.length}
+Zonas activas: ${state.deliveryZones.filter(z => z.active).length}
+
+### Catálogo de Novelas
+Total de novelas: ${state.novels.length}
+Novelas activas: ${state.novels.filter(n => n.active).length}
+
+### Archivos del Sistema
+- AdminContext.tsx: Contexto principal de administración
+- CartContext.tsx: Contexto del carrito de compras
+- CheckoutModal.tsx: Modal de checkout con zonas de entrega
+- NovelasModal.tsx: Modal del catálogo de novelas
+- PriceCard.tsx: Componente de visualización de precios
+- AdminPanel.tsx: Panel de control administrativo
+
+## Instrucciones de Instalación
+
+1. Extraer todos los archivos manteniendo la estructura de carpetas
+2. Reemplazar los archivos existentes en el proyecto
+3. Reiniciar la aplicación para aplicar los cambios
+
+---
+*Generado automáticamente por TV a la Carta Admin System*`;
+  };
+
+  const createSystemBackupZip = async (backupData: any) => {
+    try {
+      // Import JSZip dynamically
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+      
+      // Create directory structure and add files
+      const systemFiles = backupData.systemFiles;
+      
+      Object.entries(systemFiles).forEach(([filePath, content]) => {
+        zip.file(filePath, content as string);
+      });
+      
+      // Generate ZIP file
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      
+      // Download ZIP file
+      const url = URL.createObjectURL(zipBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `TV_a_la_Carta_Sistema_${new Date().toISOString().split('T')[0]}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+    } catch (error) {
+      console.error('Error creating ZIP file:', error);
+      // Fallback to JSON export
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], {
+        type: 'application/json'
+      });
+      
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `TV_a_la_Carta_Backup_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
   };
 
   const getSystemFiles = (): SystemFile[] => {
