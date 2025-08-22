@@ -671,7 +671,7 @@ export function NovelasModal({ isOpen, onClose }: NovelasModalProps) {
                             <div className="flex-1">
                               <div className="flex flex-col sm:flex-row sm:items-start justify-between space-y-3 sm:space-y-0">
                                 <div className="flex-1">
-                                  <p className="font-semibold text-gray-900 mb-2 text-lg">{novela.titulo}</p>
+                                  <p className="font-semibold text-gray-900 mb-2 text-lg break-words">{novela.titulo}</p>
                                   <div className="flex flex-wrap gap-2 text-sm text-gray-600 mb-3">
                                     <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-medium">
                                       {novela.genero}
