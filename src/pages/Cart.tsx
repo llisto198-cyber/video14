@@ -236,7 +236,7 @@ export function Cart() {
                         </div>
                         {item.paymentType === 'transfer' && (
                           <div className="text-xs text-orange-600 mt-1">
-                            +10% incluido
+                            +{transferFeePercentage}% recargo bancario
                           </div>
                         )}
                       </div>
