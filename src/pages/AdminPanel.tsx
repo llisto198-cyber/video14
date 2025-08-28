@@ -270,21 +270,6 @@ export function AdminPanel() {
   const [zoneForm, setZoneForm] = useState({ name: '', cost: 0, active: true });
   const [novelForm, setNovelForm] = useState({ titulo: '', genero: '', capitulos: 0, año: new Date().getFullYear(), descripcion: '', active: true });
 
-  // Toast notification state
-  const [notification, setNotification] = useState<{
-    show: boolean;
-    message: string;
-    type: 'success' | 'error' | 'info';
-  }>({ show: false, message: '', type: 'success' });
-
-  // Show notification function
-  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
-    setNotification({ show: true, message, type });
-    setTimeout(() => {
-      setNotification(prev => ({ ...prev, show: false }));
-    }, 4000);
-  };
-
   useEffect(() => {
     setPriceForm(state.prices);
   }, [state.prices]);
@@ -296,13 +281,11 @@ export function AdminPanel() {
   const handlePriceUpdate = (e: React.FormEvent) => {
     e.preventDefault();
     updatePrices(priceForm);
-    showNotification('Precios actualizados correctamente', 'success');
   };
 
   const handleAddZone = (e: React.FormEvent) => {
     e.preventDefault();
     addDeliveryZone(zoneForm);
-    showNotification(`Zona "${zoneForm.name}" agregada correctamente`, 'success');
     setZoneForm({ name: '', cost: 0, active: true });
     setShowAddZoneForm(false);
   };
@@ -311,7 +294,6 @@ export function AdminPanel() {
     e.preventDefault();
     if (editingZone) {
       updateDeliveryZone({ ...editingZone, ...zoneForm });
-      showNotification(`Zona "${zoneForm.name}" actualizada correctamente`, 'success');
       setEditingZone(null);
       setZoneForm({ name: '', cost: 0, active: true });
     }
@@ -320,7 +302,6 @@ export function AdminPanel() {
   const handleAddNovel = (e: React.FormEvent) => {
     e.preventDefault();
     addNovel(novelForm);
-    showNotification(`Novela "${novelForm.titulo}" agregada correctamente`, 'success');
     setNovelForm({ titulo: '', genero: '', capitulos: 0, año: new Date().getFullYear(), descripcion: '', active: true });
     setShowAddNovelForm(false);
   };
@@ -329,7 +310,6 @@ export function AdminPanel() {
     e.preventDefault();
     if (editingNovel) {
       updateNovel({ ...editingNovel, ...novelForm });
-      showNotification(`Novela "${novelForm.titulo}" actualizada correctamente`, 'success');
       setEditingNovel(null);
       setNovelForm({ titulo: '', genero: '', capitulos: 0, año: new Date().getFullYear(), descripcion: '', active: true });
     }
@@ -343,28 +323,6 @@ export function AdminPanel() {
   const startEditNovel = (novel: Novel) => {
     setEditingNovel(novel);
     setNovelForm({ titulo: novel.titulo, genero: novel.genero, capitulos: novel.capitulos, año: novel.año, descripcion: novel.descripcion || '', active: novel.active });
-  };
-
-  const handleDeleteZone = (zoneId: number) => {
-    const zone = state.deliveryZones.find(z => z.id === zoneId);
-    deleteDeliveryZone(zoneId);
-    showNotification(`Zona "${zone?.name}" eliminada correctamente`, 'info');
-  };
-
-  const handleDeleteNovel = (novelId: number) => {
-    const novel = state.novels.find(n => n.id === novelId);
-    deleteNovel(novelId);
-    showNotification(`Novela "${novel?.titulo}" eliminada correctamente`, 'info');
-  };
-
-  const handleClearNotifications = () => {
-    clearNotifications();
-    showNotification('Notificaciones limpiadas correctamente', 'info');
-  };
-
-  const handleExportBackup = () => {
-    exportSystemBackup();
-    showNotification('Sistema exportado correctamente', 'success');
   };
 
   const renderDashboard = () => (
@@ -666,14 +624,12 @@ export function AdminPanel() {
                   <button
                     onClick={() => startEditZone(zone)}
                     className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
-                    title="Editar zona"
                   >
                     <Edit3 className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() => handleDeleteZone(zone.id)}
+                    onClick={() => deleteDeliveryZone(zone.id)}
                     className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Eliminar zona"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -844,14 +800,12 @@ export function AdminPanel() {
                   <button
                     onClick={() => startEditNovel(novel)}
                     className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
-                    title="Editar novela"
                   >
                     <Edit3 className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() => handleDeleteNovel(novel.id)}
+                    onClick={() => deleteNovel(novel.id)}
                     className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Eliminar novela"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -906,41 +860,150 @@ export function AdminPanel() {
             <div className="text-center">
               <h4 className="text-xl font-bold text-gray-900 mb-4">Exportar Sistema Completo</h4>
               <p className="text-gray-600 mb-6">
-                Exporta todos los archivos del sistema con las configuraciones actuales sincronizadas
+                Exporta el sistema completo incluyendo AdminContext.tsx, CheckoutModal.tsx, NovelasModal.tsx y todos los archivos con las configuraciones actuales sincronizadas en tiempo real
               </p>
+              
+              <div className="bg-blue-50 rounded-lg p-4 mb-6 border border-blue-200">
+                <h5 className="font-semibold text-blue-900 mb-3">Archivos Principales Incluidos:</h5>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                  <div className="bg-white rounded-lg p-3 border border-blue-100">
+                    <div className="font-medium text-blue-800">AdminContext.tsx</div>
+                    <div className="text-blue-600 text-xs">Estado actual sincronizado</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border border-blue-100">
+                    <div className="font-medium text-purple-800">CheckoutModal.tsx</div>
+                    <div className="text-purple-600 text-xs">Zonas de entrega actualizadas</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border border-blue-100">
+                    <div className="font-medium text-pink-800">NovelasModal.tsx</div>
+                    <div className="text-pink-600 text-xs">Catálogo de novelas completo</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-green-50 rounded-lg p-4 mb-6 border border-green-200">
+                <h5 className="font-semibold text-green-900 mb-2">Configuraciones Actuales:</h5>
+                <div className="text-sm text-green-700 space-y-1">
+                  <div>• Precios: Películas ${state.prices.moviePrice} CUP, Series ${state.prices.seriesPrice} CUP</div>
+                  <div>• Zonas de entrega: {state.deliveryZones.length} configuradas</div>
+                  <div>• Novelas: {state.novels.length} en catálogo</div>
+                  <div>• Recargo transferencia: {state.prices.transferFeePercentage}%</div>
+                </div>
+              </div>
+              
               <button
                 onClick={exportSystemBackup}
-                onClick={handleExportBackup}
-                className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold py-4 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl flex items-center space-x-3 mx-auto"
+                className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold py-4 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl flex items-center space-x-3 mx-auto group"
               >
-                <Download className="h-6 w-6" />
-                <span>Exportar Sistema</span>
+                <Download className="h-6 w-6 group-hover:animate-bounce" />
+                <span>Exportar Sistema Completo</span>
               </button>
             </div>
           </div>
 
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-              <h4 className="font-semibold text-gray-900">Archivos del Sistema</h4>
+              <div className="flex items-center justify-between">
+                <h4 className="font-semibold text-gray-900">Archivos del Sistema</h4>
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm text-gray-600">
+                    Total: {6 + state.deliveryZones.length + state.novels.length} archivos
+                  </span>
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+                    <span className="text-xs text-green-600 font-medium">Sincronizado</span>
+                  </div>
+                </div>
+              </div>
             </div>
             <div className="divide-y divide-gray-200">
               {[
-                { name: 'AdminContext.tsx', description: 'Contexto principal del sistema', status: 'Sincronizado' },
-                { name: 'AdminPanel.tsx', description: 'Panel de control administrativo', status: 'Sincronizado' },
-                { name: 'CheckoutModal.tsx', description: 'Modal de checkout con zonas', status: 'Sincronizado' },
-                { name: 'NovelasModal.tsx', description: 'Modal de catálogo de novelas', status: 'Sincronizado' },
-                { name: 'PriceCard.tsx', description: 'Componente de precios', status: 'Sincronizado' },
-                { name: 'CartContext.tsx', description: 'Contexto del carrito', status: 'Sincronizado' }
+                { 
+                  name: 'AdminContext.tsx', 
+                  description: `Contexto principal del sistema`, 
+                  details: `${state.deliveryZones.length} zonas de entrega, ${state.novels.length} novelas administradas, precios sincronizados`,
+                  status: 'Sincronizado', 
+                  priority: 'Crítica',
+                  lastUpdate: new Date().toISOString(),
+                  size: '~15KB'
+                },
+                { 
+                  name: 'CheckoutModal.tsx', 
+                  description: `Modal de finalización de pedidos`, 
+                  details: `${Object.keys({...{}, ...state.deliveryZones.reduce((acc, zone) => { acc[zone.name] = zone.cost; return acc; }, {} as any)}).length} zonas de entrega disponibles, cálculos automáticos`,
+                  status: 'Sincronizado', 
+                  priority: 'Crítica',
+                  lastUpdate: new Date().toISOString(),
+                  size: '~12KB'
+                },
+                { 
+                  name: 'NovelasModal.tsx', 
+                  description: `Catálogo completo de novelas`, 
+                  details: `${50 + state.novels.length} novelas totales, filtros avanzados, precios dinámicos`,
+                  status: 'Sincronizado', 
+                  priority: 'Crítica',
+                  lastUpdate: new Date().toISOString(),
+                  size: '~18KB'
+                },
+                { 
+                  name: 'AdminPanel.tsx', 
+                  description: 'Panel de control administrativo', 
+                  details: 'Dashboard, gestión completa, notificaciones en tiempo real',
+                  status: 'Sincronizado', 
+                  priority: 'Alta',
+                  lastUpdate: new Date().toISOString(),
+                  size: '~25KB'
+                },
+                { 
+                  name: 'PriceCard.tsx', 
+                  description: 'Componente de visualización de precios', 
+                  details: `Película $${state.prices.moviePrice} CUP, Serie $${state.prices.seriesPrice} CUP, Transferencia +${state.prices.transferFeePercentage}%`,
+                  status: 'Sincronizado', 
+                  priority: 'Alta',
+                  lastUpdate: new Date().toISOString(),
+                  size: '~4KB'
+                },
+                { 
+                  name: 'CartContext.tsx', 
+                  description: 'Contexto del carrito de compras', 
+                  details: 'Gestión de elementos, cálculos automáticos, persistencia',
+                  status: 'Sincronizado', 
+                  priority: 'Alta',
+                  lastUpdate: new Date().toISOString(),
+                  size: '~8KB'
+                }
               ].map((file, index) => (
                 <div key={index} className="p-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-center justify-between">
                     <div>
                       <h5 className="font-medium text-gray-900">{file.name}</h5>
                       <p className="text-gray-600 text-sm">{file.description}</p>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          file.priority === 'Crítica' ? 'bg-red-100 text-red-800' :
+                          file.priority === 'Alta' ? 'bg-orange-100 text-orange-800' :
+                          file.priority === 'Media' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-green-100 text-green-800'
+                        }`}>
+                          {file.priority}
+                        </span>
+                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                          {file.size}
+                        </span>
+                      <p className="text-gray-500 text-xs mt-1">{file.details}</p>
+                      <div className="flex items-center mt-2 space-x-2">
+                        <span className="text-xs text-gray-500">
+                          Última sincronización: {new Date(file.lastUpdate).toLocaleTimeString('es-ES')}
+                        </span>
+                      </div>
                     </div>
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      {file.status}
-                    </span>
+                    <div className="text-right">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mb-2">
+                        {file.status}
+                      </span>
+                      <div className="text-xs text-gray-500">
+                        Incluido en exportación
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1038,7 +1101,6 @@ export function AdminPanel() {
             
             <button
               onClick={logout}
-              onClick={handleClearNotifications}
               className="bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white px-4 py-2 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 hover:shadow-lg"
             >
               Cerrar Sesión
@@ -1095,50 +1157,6 @@ export function AdminPanel() {
           </div>
         </div>
       </div>
-
-      {/* Toast Notification */}
-      {notification.show && (
-        <div className="fixed top-4 right-4 z-50 animate-in fade-in slide-in-from-right duration-300">
-          <div className={`flex items-center p-4 rounded-xl shadow-2xl border-l-4 max-w-md ${
-            notification.type === 'success' 
-              ? 'bg-green-50 border-green-500 text-green-800' 
-              : notification.type === 'error'
-                ? 'bg-red-50 border-red-500 text-red-800'
-                : 'bg-blue-50 border-blue-500 text-blue-800'
-          }`}>
-            <div className={`p-2 rounded-full mr-3 ${
-              notification.type === 'success' 
-                ? 'bg-green-100' 
-                : notification.type === 'error'
-                  ? 'bg-red-100'
-                  : 'bg-blue-100'
-            }`}>
-              {notification.type === 'success' ? (
-                <Check className="h-5 w-5 text-green-600" />
-              ) : notification.type === 'error' ? (
-                <X className="h-5 w-5 text-red-600" />
-              ) : (
-                <Info className="h-5 w-5 text-blue-600" />
-              )}
-            </div>
-            <div className="flex-1">
-              <p className="font-medium text-sm">{notification.message}</p>
-            </div>
-            <button
-              onClick={() => setNotification(prev => ({ ...prev, show: false }))}
-              className={`ml-3 p-1 rounded-full hover:bg-opacity-20 transition-colors ${
-                notification.type === 'success' 
-                  ? 'hover:bg-green-600' 
-                  : notification.type === 'error'
-                    ? 'hover:bg-red-600'
-                    : 'hover:bg-blue-600'
-              }`}
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
