@@ -6,7 +6,7 @@ import type { CartItem } from '../types/movie';
 const EMBEDDED_PRICES = {
   "moviePrice": 80,
   "seriesPrice": 300,
-  "transferFeePercentage": 17,
+  "transferFeePercentage": 10,
   "novelPricePerChapter": 5
 };
 

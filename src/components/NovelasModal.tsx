@@ -2,24 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { X, Download, MessageCircle, Phone, BookOpen, Info, Check, DollarSign, CreditCard, Calculator, Search, Filter, SortAsc, SortDesc } from 'lucide-react';
 
 // CATÁLOGO DE NOVELAS EMBEBIDO - Generado automáticamente
-const EMBEDDED_NOVELS = [
-  {
-    "titulo": "y",
-    "genero": "y",
-    "capitulos": 1,
-    "año": 2025,
-    "descripcion": "",
-    "id": 1757058335550,
-    "createdAt": "2025-09-05T07:45:35.550Z",
-    "updatedAt": "2025-09-05T07:45:35.550Z"
-  }
-];
+const EMBEDDED_NOVELS = [];
 
 // PRECIOS EMBEBIDOS
 const EMBEDDED_PRICES = {
   "moviePrice": 80,
   "seriesPrice": 300,
-  "transferFeePercentage": 17,
+  "transferFeePercentage": 10,
   "novelPricePerChapter": 5
 };
 
@@ -55,7 +44,7 @@ export function NovelasModal({ isOpen, onClose }: NovelasModalProps) {
   
   // Base novels list
   const defaultNovelas: Novela[] = [
-    
+   
   ];
 
   // Combine admin novels with default novels

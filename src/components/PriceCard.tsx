@@ -5,7 +5,7 @@ import { DollarSign, Tv, Film, Star, CreditCard } from 'lucide-react';
 const EMBEDDED_PRICES = {
   "moviePrice": 80,
   "seriesPrice": 300,
-  "transferFeePercentage": 17,
+  "transferFeePercentage": 10,
   "novelPricePerChapter": 5
 };
 

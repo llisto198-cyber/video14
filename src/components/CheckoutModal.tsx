@@ -2,21 +2,13 @@ import React, { useState } from 'react';
 import { X, User, MapPin, Phone, Copy, Check, MessageCircle, Calculator, DollarSign, CreditCard } from 'lucide-react';
 
 // ZONAS DE ENTREGA EMBEBIDAS - Generadas automáticamente
-const EMBEDDED_DELIVERY_ZONES = [
-  {
-    "name": "Camaguei",
-    "cost": 20,
-    "id": 1757058326438,
-    "createdAt": "2025-09-05T07:45:26.438Z",
-    "updatedAt": "2025-09-05T07:45:26.438Z"
-  }
-];
+const EMBEDDED_DELIVERY_ZONES = [];
 
 // PRECIOS EMBEBIDOS
 const EMBEDDED_PRICES = {
   "moviePrice": 80,
   "seriesPrice": 300,
-  "transferFeePercentage": 17,
+  "transferFeePercentage": 10,
   "novelPricePerChapter": 5
 };
 

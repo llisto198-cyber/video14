@@ -4,34 +4,15 @@ import JSZip from 'jszip';
 // CONFIGURACIÓN EMBEBIDA - Generada automáticamente
 const EMBEDDED_CONFIG = {
   "version": "2.1.0",
-  "lastExport": "2025-09-05T07:45:35.550Z",
+  "lastExport": "2025-09-05T08:44:06.529Z",
   "prices": {
     "moviePrice": 80,
     "seriesPrice": 300,
-    "transferFeePercentage": 17,
+    "transferFeePercentage": 10,
     "novelPricePerChapter": 5
   },
-  "deliveryZones": [
-    {
-      "name": "Camaguei",
-      "cost": 20,
-      "id": 1757058326438,
-      "createdAt": "2025-09-05T07:45:26.438Z",
-      "updatedAt": "2025-09-05T07:45:26.438Z"
-    }
-  ],
-  "novels": [
-    {
-      "titulo": "y",
-      "genero": "y",
-      "capitulos": 1,
-      "año": 2025,
-      "descripcion": "",
-      "id": 1757058335550,
-      "createdAt": "2025-09-05T07:45:35.550Z",
-      "updatedAt": "2025-09-05T07:45:35.550Z"
-    }
-  ],
+  "deliveryZones": [],
+  "novels": [],
   "settings": {
     "autoSync": true,
     "syncInterval": 300000,
