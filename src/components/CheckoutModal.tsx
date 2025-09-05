@@ -209,6 +209,11 @@ export function CheckoutModal({ isOpen, onClose, onCheckout, items, total }: Che
     orderText += `${deliveryZone.replace(' > ', ' → ')}\n`;
     orderText += `💰 Costo de entrega: $${deliveryCost.toLocaleString()} CUP\n\n`;
     
+    orderText += `💼 *CONFIGURACIÓN DE PRECIOS APLICADA:*\n`;
+    orderText += `• Películas: $${(adminContext?.state?.prices?.moviePrice || 80).toLocaleString()} CUP\n`;
+    orderText += `• Series: $${(adminContext?.state?.prices?.seriesPrice || 300).toLocaleString()} CUP por temporada\n`;
+    orderText += `• Recargo transferencia: ${transferFeePercentage}%\n\n`;
+    
     orderText += `⏰ *Fecha:* ${new Date().toLocaleString('es-ES')}\n`;
     orderText += `🌟 *¡Gracias por elegir TV a la Carta!*`;
 
