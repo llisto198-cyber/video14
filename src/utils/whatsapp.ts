@@ -138,6 +138,18 @@ export function sendOrderToWhatsApp(orderData: OrderData): void {
   if (transferItems.length > 0) {
     message += `• Pago por transferencia: ${transferItems.length} elementos\n`;
   }
+  
+  // Información de entrega
+  const isPickup = deliveryZone.toLowerCase().includes('recogida') || deliveryZone.toLowerCase().includes('local');
+  if (isPickup) {
+    message += `• Modalidad: Recogida en el local\n`;
+    message += `• Costo de entrega: GRATIS\n`;
+  } else if (deliveryCost > 0) {
+    message += `• Modalidad: Entrega a domicilio\n`;
+    message += `• Costo de entrega: $${deliveryCost.toLocaleString()} CUP\n`;
+  } else {
+    message += `• Modalidad: Entrega gratuita\n`;
+  }
   message += `\n`;
   
   message += `💼 *CONFIGURACIÓN DE PRECIOS APLICADA:*\n`;
