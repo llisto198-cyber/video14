@@ -410,17 +410,19 @@ export function NovelasModal({ isOpen, onClose }: NovelasModalProps) {
                   <div className="flex space-x-4">
                     <button
                       onClick={handleCall}
-                      className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center"
+                      className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-4 sm:px-6 py-3 rounded-xl font-bold transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center text-sm sm:text-base"
                     >
                       <Phone className="h-5 w-5 mr-2" />
-                      Llamar
+                      <span className="hidden sm:inline">Llamar</span>
+                      <span className="sm:hidden">Call</span>
                     </button>
                     <button
                       onClick={handleWhatsApp}
-                      className="bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center"
+                      className="bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white px-4 sm:px-6 py-3 rounded-xl font-bold transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center text-sm sm:text-base"
                     >
                       <MessageCircle className="h-5 w-5 mr-2" />
-                      WhatsApp
+                      <span className="hidden sm:inline">WhatsApp</span>
+                      <span className="sm:hidden">Chat</span>
                     </button>
                   </div>
                 </div>
