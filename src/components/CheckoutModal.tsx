@@ -1,16 +1,8 @@
-import React, { useState } from 'react';
-import { X, User, MapPin, Phone, Copy, Check, MessageCircle, Calculator, DollarSign, CreditCard } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, User, Phone, MapPin, CreditCard, DollarSign, Truck, Home, MessageCircle, AlertCircle, Check } from 'lucide-react';
 
 // ZONAS DE ENTREGA EMBEBIDAS - Generadas automáticamente
 const EMBEDDED_DELIVERY_ZONES = [];
-
-// PRECIOS EMBEBIDOS
-const EMBEDDED_PRICES = {
-  "moviePrice": 80,
-  "seriesPrice": 300,
-  "transferFeePercentage": 10,
-  "novelPricePerChapter": 5
-};
 
 export interface CustomerInfo {
   fullName: string;
@@ -21,7 +13,7 @@ export interface CustomerInfo {
 export interface OrderData {
   orderId: string;
   customerInfo: CustomerInfo;
-  deliveryZone: string;
+  deliveryZone: any;
   deliveryCost: number;
   items: any[];
   subtotal: number;
@@ -35,226 +27,149 @@ interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCheckout: (orderData: OrderData) => void;
-  items: any[];
+  items: Array<{
+    id: number;
+    title: string;
+    price: number;
+    quantity: number;
+  }>;
   total: number;
 }
-
-// Base delivery zones - these will be combined with embedded zones
-const BASE_DELIVERY_ZONES = {
-  'Por favor seleccionar su Barrio/Zona': 0,
-  'Recogida en el Local > TV a la Carta > Oficina Central': 0,
-};
 
 export function CheckoutModal({ isOpen, onClose, onCheckout, items, total }: CheckoutModalProps) {
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({
     fullName: '',
     phone: '',
-    address: '',
+    address: ''
   });
   
-  const [deliveryZone, setDeliveryZone] = useState('Por favor seleccionar su Barrio/Zona');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [orderGenerated, setOrderGenerated] = useState(false);
-  const [generatedOrder, setGeneratedOrder] = useState('');
-  const [copied, setCopied] = useState(false);
+  const [deliveryType, setDeliveryType] = useState<'pickup' | 'delivery'>('pickup');
+  const [selectedZone, setSelectedZone] = useState<any>(null);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Get delivery zones from embedded configuration
-  const embeddedZonesMap = EMBEDDED_DELIVERY_ZONES.reduce((acc, zone) => {
-    acc[zone.name] = zone.cost;
-    return acc;
-  }, {} as { [key: string]: number });
-  
-  // Combine embedded zones with base zones
-  const allZones = { ...BASE_DELIVERY_ZONES, ...embeddedZonesMap };
-  const deliveryCost = allZones[deliveryZone as keyof typeof allZones] || 0;
-  const finalTotal = total + deliveryCost;
-
-  // Get current transfer fee percentage from embedded prices
-  const transferFeePercentage = EMBEDDED_PRICES.transferFeePercentage;
-
-  const isFormValid = customerInfo.fullName.trim() !== '' && 
-                     customerInfo.phone.trim() !== '' && 
-                     customerInfo.address.trim() !== '' &&
-                     deliveryZone !== 'Por favor seleccionar su Barrio/Zona';
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setCustomerInfo(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const generateOrderId = () => {
-    const timestamp = Date.now().toString(36);
-    const random = Math.random().toString(36).substr(2, 5);
-    return `TVC-${timestamp}-${random}`.toUpperCase();
-  };
-
-  const calculateTotals = () => {
-    const cashItems = items.filter(item => item.paymentType === 'cash');
-    const transferItems = items.filter(item => item.paymentType === 'transfer');
-    
-    // Get current prices from embedded configuration
-    const moviePrice = EMBEDDED_PRICES.moviePrice;
-    const seriesPrice = EMBEDDED_PRICES.seriesPrice;
-    
-    const cashTotal = cashItems.reduce((sum, item) => {
-      const basePrice = item.type === 'movie' ? moviePrice : (item.selectedSeasons?.length || 1) * seriesPrice;
-      return sum + basePrice;
-    }, 0);
-    
-    const transferTotal = transferItems.reduce((sum, item) => {
-      const basePrice = item.type === 'movie' ? moviePrice : (item.selectedSeasons?.length || 1) * seriesPrice;
-      return sum + Math.round(basePrice * (1 + transferFeePercentage / 100));
-    }, 0);
-    
-    return { cashTotal, transferTotal };
-  };
-
-  const generateOrderText = () => {
-    const orderId = generateOrderId();
-    const { cashTotal, transferTotal } = calculateTotals();
-    const transferFee = transferTotal - items.filter(item => item.paymentType === 'transfer').reduce((sum, item) => {
-      const moviePrice = EMBEDDED_PRICES.moviePrice;
-      const seriesPrice = EMBEDDED_PRICES.seriesPrice;
-      const basePrice = item.type === 'movie' ? moviePrice : (item.selectedSeasons?.length || 1) * seriesPrice;
-      return sum + basePrice;
-    }, 0);
-
-    // Format product list with embedded pricing
-    const itemsList = items
-      .map(item => {
-        const seasonInfo = item.selectedSeasons && item.selectedSeasons.length > 0 
-          ? `\n  📺 Temporadas: ${item.selectedSeasons.sort((a, b) => a - b).join(', ')}` 
-          : '';
-        const itemType = item.type === 'movie' ? 'Película' : 'Serie';
-        const moviePrice = EMBEDDED_PRICES.moviePrice;
-        const seriesPrice = EMBEDDED_PRICES.seriesPrice;
-        const basePrice = item.type === 'movie' ? moviePrice : (item.selectedSeasons?.length || 1) * seriesPrice;
-        const finalPrice = item.paymentType === 'transfer' ? Math.round(basePrice * (1 + transferFeePercentage / 100)) : basePrice;
-        const paymentTypeText = item.paymentType === 'transfer' ? `Transferencia (+${transferFeePercentage}%)` : 'Efectivo';
-        const emoji = item.type === 'movie' ? '🎬' : '📺';
-        return `${emoji} *${item.title}*${seasonInfo}\n  📋 Tipo: ${itemType}\n  💳 Pago: ${paymentTypeText}\n  💰 Precio: $${finalPrice.toLocaleString()} CUP`;
-      })
-      .join('\n\n');
-
-    let orderText = `🎬 *PEDIDO - TV A LA CARTA*\n\n`;
-    orderText += `📋 *ID de Orden:* ${orderId}\n\n`;
-    
-    orderText += `👤 *DATOS DEL CLIENTE:*\n`;
-    orderText += `• Nombre: ${customerInfo.fullName}\n`;
-    orderText += `• Teléfono: ${customerInfo.phone}\n`;
-    orderText += `• Dirección: ${customerInfo.address}\n\n`;
-    
-    orderText += `🎯 *PRODUCTOS SOLICITADOS:*\n${itemsList}\n\n`;
-    
-    orderText += `💰 *RESUMEN DE COSTOS:*\n`;
-    
-    if (cashTotal > 0) {
-      orderText += `💵 Efectivo: $${cashTotal.toLocaleString()} CUP\n`;
-    }
-    if (transferTotal > 0) {
-      orderText += `🏦 Transferencia: $${transferTotal.toLocaleString()} CUP\n`;
-    }
-    orderText += `• *Subtotal Contenido: $${total.toLocaleString()} CUP*\n`;
-    
-    if (transferFee > 0) {
-      orderText += `• Recargo transferencia (${transferFeePercentage}%): +$${transferFee.toLocaleString()} CUP\n`;
-    }
-    
-    orderText += `🚚 Entrega (${deliveryZone.split(' > ')[2]}): +$${deliveryCost.toLocaleString()} CUP\n`;
-    orderText += `\n🎯 *TOTAL FINAL: $${finalTotal.toLocaleString()} CUP*\n\n`;
-    
-    orderText += `📍 *ZONA DE ENTREGA:*\n`;
-    orderText += `${deliveryZone.replace(' > ', ' → ')}\n`;
-    orderText += `💰 Costo de entrega: $${deliveryCost.toLocaleString()} CUP\n\n`;
-    
-    orderText += `⏰ *Fecha:* ${new Date().toLocaleString('es-ES')}\n`;
-    orderText += `🌟 *¡Gracias por elegir TV a la Carta!*`;
-
-    return { orderText, orderId };
-  };
-
-  const handleGenerateOrder = () => {
-    if (!isFormValid) {
-      alert('Por favor complete todos los campos requeridos antes de generar la orden.');
-      return;
-    }
-    
-    const { orderText } = generateOrderText();
-    setGeneratedOrder(orderText);
-    setOrderGenerated(true);
-  };
-
-  const handleCopyOrder = async () => {
+  // Obtener zonas de entrega actuales del admin context
+  const getCurrentDeliveryZones = () => {
     try {
-      await navigator.clipboard.writeText(generatedOrder);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Error copying to clipboard:', err);
+      const adminState = localStorage.getItem('admin_system_state');
+      if (adminState) {
+        const state = JSON.parse(adminState);
+        return state.deliveryZones || EMBEDDED_DELIVERY_ZONES;
+      }
+    } catch (error) {
+      console.warn('Error getting delivery zones:', error);
     }
+    return EMBEDDED_DELIVERY_ZONES;
+  };
+
+  const [deliveryZones, setDeliveryZones] = useState(getCurrentDeliveryZones());
+
+  // Escuchar cambios en las zonas de entrega
+  useEffect(() => {
+    const handleAdminChange = (event: CustomEvent) => {
+      if (event.detail.type === 'delivery_zone_add' || 
+          event.detail.type === 'delivery_zone_update' || 
+          event.detail.type === 'delivery_zone_delete') {
+        const updatedZones = getCurrentDeliveryZones();
+        setDeliveryZones(updatedZones);
+        
+        // Si la zona seleccionada fue eliminada, resetear
+        if (selectedZone && !updatedZones.find((z: any) => z.id === selectedZone.id)) {
+          setSelectedZone(null);
+        }
+      }
+    };
+
+    window.addEventListener('admin_state_change', handleAdminChange as EventListener);
+    
+    return () => {
+      window.removeEventListener('admin_state_change', handleAdminChange as EventListener);
+    };
+  }, [selectedZone]);
+
+  // Reset form when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setCustomerInfo({ fullName: '', phone: '', address: '' });
+      setDeliveryType('pickup');
+      setSelectedZone(null);
+      setErrors({});
+      setIsSubmitting(false);
+      // Actualizar zonas al abrir el modal
+      setDeliveryZones(getCurrentDeliveryZones());
+    }
+  }, [isOpen]);
+
+  const validateForm = (): boolean => {
+    const newErrors: { [key: string]: string } = {};
+
+    if (!customerInfo.fullName.trim()) {
+      newErrors.fullName = 'El nombre completo es requerido';
+    }
+
+    if (!customerInfo.phone.trim()) {
+      newErrors.phone = 'El teléfono es requerido';
+    } else if (!/^[+]?[0-9\s\-()]{8,}$/.test(customerInfo.phone.trim())) {
+      newErrors.phone = 'Formato de teléfono inválido';
+    }
+
+    if (!customerInfo.address.trim()) {
+      newErrors.address = 'La dirección es requerida';
+    }
+
+    if (deliveryType === 'delivery' && !selectedZone) {
+      newErrors.zone = 'Debe seleccionar una zona de entrega';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (deliveryZone === 'Por favor seleccionar su Barrio/Zona') {
-      alert('Por favor selecciona un barrio específico para la entrega.');
+    if (!validateForm()) {
       return;
     }
 
-    setIsProcessing(true);
+    setIsSubmitting(true);
 
     try {
-      const { orderId } = generateOrderText();
-      const { cashTotal, transferTotal } = calculateTotals();
-      const transferFee = transferTotal - items.filter(item => item.paymentType === 'transfer').reduce((sum, item) => {
-        const moviePrice = EMBEDDED_PRICES.moviePrice;
-        const seriesPrice = EMBEDDED_PRICES.seriesPrice;
-        const basePrice = item.type === 'movie' ? moviePrice : (item.selectedSeasons?.length || 1) * seriesPrice;
-        return sum + basePrice;
-      }, 0);
+      const orderId = `TV-${Date.now()}`;
+      const deliveryCost = deliveryType === 'delivery' && selectedZone ? selectedZone.cost : 0;
+      const finalTotal = total + deliveryCost;
 
       const orderData: OrderData = {
         orderId,
         customerInfo,
-        deliveryZone,
+        deliveryZone: deliveryType === 'delivery' && selectedZone ? selectedZone : { name: 'Recogida en tienda', cost: 0 },
         deliveryCost,
         items,
         subtotal: total,
-        transferFee,
-        total: finalTotal,
-        cashTotal,
-        transferTotal
+        transferFee: 0,
+        total: finalTotal
       };
 
-      await onCheckout(orderData);
+      onCheckout(orderData);
     } catch (error) {
-      console.error('Checkout failed:', error);
+      console.error('Error processing order:', error);
     } finally {
-      setIsProcessing(false);
+      setIsSubmitting(false);
     }
   };
 
   if (!isOpen) return null;
 
+  const deliveryCost = deliveryType === 'delivery' && selectedZone ? selectedZone.cost : 0;
+  const finalTotal = total + deliveryCost;
+
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
-      <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[95vh] overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 sm:p-6 text-white">
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white">
           <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="bg-white/20 p-2 rounded-lg mr-3">
-                <MessageCircle className="h-6 w-6" />
-              </div>
-              <div>
-                <h2 className="text-xl sm:text-2xl font-bold">Finalizar Pedido</h2>
-                <p className="text-sm opacity-90">Complete sus datos para procesar el pedido</p>
-              </div>
-            </div>
+            <h2 className="text-2xl font-bold">Finalizar Pedido</h2>
             <button
               onClick={onClose}
               className="p-2 hover:bg-white/20 rounded-full transition-colors"
@@ -264,286 +179,236 @@ export function CheckoutModal({ isOpen, onClose, onCheckout, items, total }: Che
           </div>
         </div>
 
-        <div className="overflow-y-auto max-h-[calc(95vh-120px)]">
-          <div className="p-4 sm:p-6">
-            {/* Order Summary */}
-            <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-4 sm:p-6 mb-6 border border-blue-200">
-              <div className="flex items-center mb-4">
-                <Calculator className="h-6 w-6 text-blue-600 mr-3" />
-                <h3 className="text-lg sm:text-xl font-bold text-gray-900">Resumen del Pedido</h3>
-              </div>
+        <div className="overflow-y-auto max-h-[calc(90vh-120px)]">
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            {/* Customer Information */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                <User className="h-5 w-5 mr-2 text-blue-600" />
+                Información del Cliente
+              </h3>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                <div className="bg-white rounded-xl p-4 border border-gray-200">
-                  <div className="text-center">
-                    <div className="text-2xl sm:text-3xl font-bold text-blue-600 mb-2">
-                      ${total.toLocaleString()} CUP
-                    </div>
-                    <div className="text-sm text-gray-600">Subtotal Contenido</div>
-                    <div className="text-xs text-gray-500 mt-1">${items.length} elementos</div>
-                  </div>
-                </div>
-                
-                <div className="bg-white rounded-xl p-4 border border-gray-200">
-                  <div className="text-center">
-                    <div className="text-2xl sm:text-3xl font-bold text-green-600 mb-2">
-                      ${deliveryCost.toLocaleString()} CUP
-                    </div>
-                    <div className="text-sm text-gray-600">Costo de Entrega</div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      {deliveryZone.split(' > ')[2] || 'Seleccionar zona'}
-                    </div>
-                  </div>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nombre Completo *
+                </label>
+                <input
+                  type="text"
+                  value={customerInfo.fullName}
+                  onChange={(e) => setCustomerInfo({ ...customerInfo, fullName: e.target.value })}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.fullName ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Ingrese su nombre completo"
+                />
+                {errors.fullName && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle className="h-4 w-4 mr-1" />
+                    {errors.fullName}
+                  </p>
+                )}
               </div>
 
-              <div className="bg-gradient-to-r from-green-100 to-blue-100 rounded-xl p-4 border-2 border-green-300">
-                <div className="flex flex-col sm:flex-row justify-between items-center space-y-2 sm:space-y-0">
-                  <span className="text-lg sm:text-xl font-bold text-gray-900">Total Final:</span>
-                  <span className="text-2xl sm:text-3xl font-bold text-green-600">
-                    ${finalTotal.toLocaleString()} CUP
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Teléfono *
+                </label>
+                <input
+                  type="tel"
+                  value={customerInfo.phone}
+                  onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.phone ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="+53 5555 5555"
+                />
+                {errors.phone && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle className="h-4 w-4 mr-1" />
+                    {errors.phone}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Dirección *
+                </label>
+                <textarea
+                  value={customerInfo.address}
+                  onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.address ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  rows={3}
+                  placeholder="Ingrese su dirección completa"
+                />
+                {errors.address && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle className="h-4 w-4 mr-1" />
+                    {errors.address}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Delivery Options */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                <Truck className="h-5 w-5 mr-2 text-blue-600" />
+                Opciones de Entrega
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeliveryType('pickup');
+                    setSelectedZone(null);
+                  }}
+                  className={`p-4 border-2 rounded-lg transition-all ${
+                    deliveryType === 'pickup'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-300 hover:border-blue-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-center mb-2">
+                    <Home className="h-8 w-8 text-blue-600" />
+                  </div>
+                  <h4 className="font-semibold text-gray-900">Recogida en Tienda</h4>
+                  <p className="text-sm text-gray-600 mt-1">Sin costo adicional</p>
+                  <p className="text-lg font-bold text-green-600 mt-2">Gratis</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDeliveryType('delivery')}
+                  className={`p-4 border-2 rounded-lg transition-all ${
+                    deliveryType === 'delivery'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-300 hover:border-blue-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-center mb-2">
+                    <Truck className="h-8 w-8 text-blue-600" />
+                  </div>
+                  <h4 className="font-semibold text-gray-900">Entrega a Domicilio</h4>
+                  <p className="text-sm text-gray-600 mt-1">Según zona seleccionada</p>
+                  <p className="text-lg font-bold text-blue-600 mt-2">
+                    {selectedZone ? `$${selectedZone.cost.toLocaleString()} CUP` : 'Seleccionar zona'}
+                  </p>
+                </button>
+              </div>
+
+              {/* Delivery Zones */}
+              {deliveryType === 'delivery' && (
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Seleccionar Zona de Entrega *
+                  </label>
+                  
+                  {deliveryZones.length === 0 ? (
+                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <div className="flex items-center">
+                        <AlertCircle className="h-5 w-5 text-yellow-600 mr-2" />
+                        <p className="text-sm text-yellow-800">
+                          No hay zonas de entrega configuradas. Por favor, seleccione "Recogida en Tienda" o contacte al administrador.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {deliveryZones.map((zone: any) => (
+                        <button
+                          key={zone.id}
+                          type="button"
+                          onClick={() => setSelectedZone(zone)}
+                          className={`w-full p-3 text-left border rounded-lg transition-all ${
+                            selectedZone?.id === zone.id
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-300 hover:border-blue-300'
+                          }`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <p className="font-medium text-gray-900">{zone.name}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-bold text-blue-600">${zone.cost.toLocaleString()} CUP</p>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {errors.zone && (
+                    <p className="text-sm text-red-600 flex items-center">
+                      <AlertCircle className="h-4 w-4 mr-1" />
+                      {errors.zone}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Order Summary */}
+            <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+              <h3 className="text-lg font-semibold text-gray-900">Resumen del Pedido</h3>
+              
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Subtotal ({items.length} elementos)</span>
+                  <span className="font-medium">${total.toLocaleString()} CUP</span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-gray-600">
+                    {deliveryType === 'pickup' ? 'Recogida en tienda' : 'Entrega a domicilio'}
                   </span>
+                  <span className="font-medium">
+                    {deliveryCost === 0 ? 'Gratis' : `$${deliveryCost.toLocaleString()} CUP`}
+                  </span>
+                </div>
+                
+                <div className="border-t pt-2">
+                  <div className="flex justify-between text-lg font-bold">
+                    <span>Total</span>
+                    <span className="text-blue-600">${finalTotal.toLocaleString()} CUP</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {!orderGenerated ? (
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Customer Information */}
-                <div className="bg-white rounded-2xl p-4 sm:p-6 border border-gray-200 shadow-sm">
-                  <h3 className="text-lg sm:text-xl font-bold mb-4 flex items-center text-gray-900">
-                    <User className="h-5 w-5 mr-3 text-blue-600" />
-                    Información Personal
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="sm:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Nombre Completo *
-                      </label>
-                      <input
-                        type="text"
-                        name="fullName"
-                        value={customerInfo.fullName}
-                        onChange={handleInputChange}
-                        required
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                        placeholder="Ingrese su nombre completo"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Teléfono *
-                      </label>
-                      <input
-                        type="tel"
-                        name="phone"
-                        value={customerInfo.phone}
-                        onChange={handleInputChange}
-                        required
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                        placeholder="+53 5XXXXXXX"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Dirección Completa *
-                      </label>
-                      <input
-                        type="text"
-                        name="address"
-                        value={customerInfo.address}
-                        onChange={handleInputChange}
-                        required
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                        placeholder="Calle, número, entre calles..."
-                      />
-                    </div>
-                  </div>
-                </div>
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={isSubmitting || (deliveryType === 'delivery' && deliveryZones.length === 0)}
+              className={`w-full py-4 px-6 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center ${
+                isSubmitting || (deliveryType === 'delivery' && deliveryZones.length === 0)
+                  ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white transform hover:scale-105'
+              }`}
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  Procesando...
+                </>
+              ) : (
+                <>
+                  <MessageCircle className="h-5 w-5 mr-2" />
+                  Enviar Pedido por WhatsApp
+                </>
+              )}
+            </button>
 
-                {/* Delivery Zone */}
-                <div className="bg-white rounded-2xl p-4 sm:p-6 border border-gray-200 shadow-sm">
-                  <h3 className="text-lg sm:text-xl font-bold mb-4 flex items-center text-gray-900">
-                    <MapPin className="h-5 w-5 mr-3 text-green-600" />
-                    Zona de Entrega
-                  </h3>
-                  
-                  <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-4 mb-4 border border-green-200">
-                    <div className="flex items-center mb-2">
-                      <div className="bg-green-100 p-2 rounded-lg mr-3">
-                        <span className="text-sm">📍</span>
-                      </div>
-                      <h4 className="font-semibold text-green-900">Información de Entrega</h4>
-                    </div>
-                    <p className="text-sm text-green-700 ml-11">
-                      Seleccione su zona para calcular el costo de entrega. Los precios pueden variar según la distancia.
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Seleccionar Barrio/Zona *
-                    </label>
-                    <select
-                      value={deliveryZone}
-                      onChange={(e) => setDeliveryZone(e.target.value)}
-                      required
-                      className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:border-transparent transition-all bg-white ${
-                        deliveryZone === 'Por favor seleccionar su Barrio/Zona'
-                          ? 'border-orange-300 focus:ring-orange-500 bg-orange-50'
-                          : 'border-gray-300 focus:ring-green-500'
-                      }`}
-                    >
-                      {Object.entries(allZones).map(([zone, cost]) => (
-                        <option key={zone} value={zone}>
-                          {zone === 'Por favor seleccionar su Barrio/Zona' 
-                            ? zone 
-                            : `${zone.split(' > ')[2] || zone} ${cost > 0 ? `- $${cost.toLocaleString()} CUP` : ''}`
-                          }
-                        </option>
-                      ))}
-                    </select>
-                    
-                    {deliveryZone === 'Por favor seleccionar su Barrio/Zona' && (
-                      <div className="mt-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
-                        <div className="flex items-center">
-                          <span className="text-orange-600 mr-2">⚠️</span>
-                          <span className="text-sm font-medium text-orange-700">
-                            Por favor seleccione su zona de entrega para continuar
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {deliveryZone !== 'Por favor seleccionar su Barrio/Zona' && (
-                      <div className="mt-3 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-xl border border-green-200">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center">
-                            <div className="bg-green-100 p-2 rounded-lg mr-3">
-                              <span className="text-sm">{deliveryCost > 0 ? '🚚' : '🏪'}</span>
-                            </div>
-                            <span className="text-sm font-semibold text-green-800">
-                              {deliveryCost > 0 ? 'Costo de entrega confirmado:' : 'Recogida confirmada:'}
-                            </span>
-                          </div>
-                          <div className="bg-white rounded-lg px-3 py-2 border border-green-300">
-                            <span className="text-lg font-bold text-green-600">
-                              {deliveryCost > 0 ? `$${deliveryCost.toLocaleString()} CUP` : 'GRATIS'}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="text-xs text-green-600 ml-11">
-                          ✅ {deliveryCost > 0 ? 'Zona' : 'Modalidad'}: {deliveryZone.split(' > ')[2] || deliveryZone}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="flex-1 px-6 py-4 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all font-medium"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleGenerateOrder}
-                    disabled={!isFormValid || deliveryZone === 'Por favor seleccionar su Barrio/Zona'}
-                    className={`flex-1 px-6 py-4 rounded-xl transition-all font-medium ${
-                      isFormValid && deliveryZone !== 'Por favor seleccionar su Barrio/Zona'
-                        ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white'
-                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    }`}
-                  >
-                    Generar Orden
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isProcessing || !isFormValid || deliveryZone === 'Por favor seleccionar su Barrio/Zona'}
-                    className="flex-1 px-6 py-4 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl transition-all font-medium flex items-center justify-center"
-                  >
-                    {isProcessing ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                        Procesando...
-                      </>
-                    ) : (
-                      <>
-                        <MessageCircle className="h-5 w-5 mr-2" />
-                        Enviar por WhatsApp
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
-            ) : (
-              /* Generated Order Display */
-              <div className="bg-white rounded-2xl p-4 sm:p-6 border border-gray-200 shadow-sm">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 space-y-2 sm:space-y-0">
-                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center">
-                    <Check className="h-6 w-6 text-green-600 mr-3" />
-                    Orden Generada
-                  </h3>
-                  <button
-                    onClick={handleCopyOrder}
-                    className={`px-4 py-2 rounded-xl font-medium transition-all flex items-center justify-center ${
-                      copied
-                        ? 'bg-green-100 text-green-700 border border-green-300'
-                        : 'bg-blue-100 text-blue-700 border border-blue-300 hover:bg-blue-200'
-                    }`}
-                  >
-                    {copied ? (
-                      <>
-                        <Check className="h-4 w-4 mr-2" />
-                        ¡Copiado!
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-4 w-4 mr-2" />
-                        Copiar Orden
-                      </>
-                    )}
-                  </button>
-                </div>
-                
-                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 max-h-96 overflow-y-auto">
-                  <pre className="text-xs sm:text-sm text-gray-800 whitespace-pre-wrap font-mono leading-relaxed">
-                    {generatedOrder}
-                  </pre>
-                </div>
-                
-                <div className="flex flex-col sm:flex-row gap-3 mt-6">
-                  <button
-                    onClick={() => setOrderGenerated(false)}
-                    className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all font-medium"
-                  >
-                    Volver a Editar
-                  </button>
-                  <button
-                    onClick={handleSubmit}
-                    disabled={isProcessing || !isFormValid}
-                    className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 disabled:opacity-50 text-white rounded-xl transition-all font-medium flex items-center justify-center"
-                  >
-                    {isProcessing ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                        Enviando...
-                      </>
-                    ) : (
-                      <>
-                        <MessageCircle className="h-5 w-5 mr-2" />
-                        Enviar por WhatsApp
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
+            {deliveryType === 'delivery' && deliveryZones.length === 0 && (
+              <p className="text-sm text-yellow-600 text-center">
+                No se puede procesar entrega a domicilio sin zonas configuradas
+              </p>
             )}
-          </div>
+          </form>
         </div>
       </div>
     </div>

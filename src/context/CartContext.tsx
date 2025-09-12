@@ -26,7 +26,8 @@ type CartAction =
   | { type: 'UPDATE_SEASONS'; payload: { id: number; seasons: number[] } }
   | { type: 'UPDATE_PAYMENT_TYPE'; payload: { id: number; paymentType: 'cash' | 'transfer' } }
   | { type: 'CLEAR_CART' }
-  | { type: 'LOAD_CART'; payload: SeriesCartItem[] };
+  | { type: 'LOAD_CART'; payload: SeriesCartItem[] }
+  | { type: 'SYNC_PRICES'; payload: any };
 
 interface CartContextType {
   state: CartState;
@@ -90,6 +91,12 @@ function cartReducer(state: CartState, action: CartAction): CartState {
         items: action.payload,
         total: action.payload.length
       };
+    case 'SYNC_PRICES':
+      // Actualizar precios cuando cambien en el admin
+      return {
+        ...state,
+        items: state.items.map(item => ({ ...item })) // Forzar re-render
+      };
     default:
       return state;
   }
@@ -102,6 +109,35 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     type: 'success' | 'error';
     isVisible: boolean;
   }>({ message: '', type: 'success', isVisible: false });
+
+  // Obtener precios actuales del admin context
+  const getCurrentPrices = () => {
+    try {
+      const adminState = localStorage.getItem('admin_system_state');
+      if (adminState) {
+        const state = JSON.parse(adminState);
+        return state.prices || EMBEDDED_PRICES;
+      }
+    } catch (error) {
+      console.warn('Error getting admin prices:', error);
+    }
+    return EMBEDDED_PRICES;
+  };
+
+  // Escuchar cambios en el admin context
+  React.useEffect(() => {
+    const handleAdminChange = (event: CustomEvent) => {
+      if (event.detail.type === 'prices') {
+        dispatch({ type: 'SYNC_PRICES', payload: event.detail.data });
+      }
+    };
+
+    window.addEventListener('admin_state_change', handleAdminChange as EventListener);
+    
+    return () => {
+      window.removeEventListener('admin_state_change', handleAdminChange as EventListener);
+    };
+  }, []);
 
   // Clear cart on page refresh
   useEffect(() => {
@@ -205,18 +241,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const calculateItemPrice = (item: SeriesCartItem): number => {
-    // Use embedded prices
-    const moviePrice = EMBEDDED_PRICES.moviePrice;
-    const seriesPrice = EMBEDDED_PRICES.seriesPrice;
-    const transferFeePercentage = EMBEDDED_PRICES.transferFeePercentage;
+    // Use current prices from admin
+    const currentPrices = getCurrentPrices();
     
     if (item.type === 'movie') {
-      const basePrice = moviePrice;
-      return item.paymentType === 'transfer' ? Math.round(basePrice * (1 + transferFeePercentage / 100)) : basePrice;
+      const basePrice = currentPrices.moviePrice;
+      return item.paymentType === 'transfer' ? Math.round(basePrice * (1 + currentPrices.transferFeePercentage / 100)) : basePrice;
     } else {
       const seasons = item.selectedSeasons?.length || 1;
-      const basePrice = seasons * seriesPrice;
-      return item.paymentType === 'transfer' ? Math.round(basePrice * (1 + transferFeePercentage / 100)) : basePrice;
+      const basePrice = seasons * currentPrices.seriesPrice;
+      return item.paymentType === 'transfer' ? Math.round(basePrice * (1 + currentPrices.transferFeePercentage / 100)) : basePrice;
     }
   };
 
@@ -227,14 +261,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const calculateTotalByPaymentType = (): { cash: number; transfer: number } => {
-    const moviePrice = EMBEDDED_PRICES.moviePrice;
-    const seriesPrice = EMBEDDED_PRICES.seriesPrice;
-    const transferFeePercentage = EMBEDDED_PRICES.transferFeePercentage;
+    const currentPrices = getCurrentPrices();
     
     return state.items.reduce((totals, item) => {
-      const basePrice = item.type === 'movie' ? moviePrice : (item.selectedSeasons?.length || 1) * seriesPrice;
+      const basePrice = item.type === 'movie' ? currentPrices.moviePrice : (item.selectedSeasons?.length || 1) * currentPrices.seriesPrice;
       if (item.paymentType === 'transfer') {
-        totals.transfer += Math.round(basePrice * (1 + transferFeePercentage / 100));
+        totals.transfer += Math.round(basePrice * (1 + currentPrices.transferFeePercentage / 100));
       } else {
         totals.cash += basePrice;
       }
