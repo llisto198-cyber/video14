@@ -79,7 +79,12 @@ export function Home() {
       'Alemania': '🇩🇪',
       'Japón': '🇯🇵',
       'China': '🇨🇳',
-      'Rusia': '🇷🇺'
+      'Rusia': '🇷🇺',
+      'Venezuela': '🇻🇪',
+      'Chile': '🇨🇱',
+      'Perú': '🇵🇪',
+      'Ecuador': '🇪🇨',
+      'Cuba': '🇨🇺'
     };
     return flags[country] || '🌍';
   };

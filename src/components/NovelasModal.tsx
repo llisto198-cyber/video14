@@ -382,6 +382,11 @@ export function NovelasModal({ isOpen, onClose, onFinalizePedido }: NovelasModal
       'Japón': '🇯🇵',
       'China': '🇨🇳',
       'Rusia': '🇷🇺',
+      'Venezuela': '🇻🇪',
+      'Chile': '🇨🇱',
+      'Perú': '🇵🇪',
+      'Ecuador': '🇪🇨',
+      'Cuba': '🇨🇺'
       'No especificado': '🌍'
     };
     return flags[country] || '🌍';
