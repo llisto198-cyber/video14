@@ -32,9 +32,6 @@ export function MovieCard({ item, type }: MovieCardProps) {
     e.preventDefault();
     e.stopPropagation();
     
-    // Prevent multiple rapid clicks
-    if (isAddingToCart) return;
-    
     setIsAddingToCart(true);
     setTimeout(() => setIsAddingToCart(false), 1000);
 
@@ -59,11 +56,8 @@ export function MovieCard({ item, type }: MovieCardProps) {
       setToastMessage(`"${title}" agregado al carrito`);
     }
     
-    // Only show toast if not already showing
-    if (!showToast) {
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
-    }
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
   };
 
   return (
@@ -224,14 +218,12 @@ export function MovieCard({ item, type }: MovieCardProps) {
         )}
       </div>
       
-      {showToast && (
-        <Toast
-          message={toastMessage}
-          type={inCart ? "success" : "success"}
-          isVisible={showToast}
-          onClose={() => setShowToast(false)}
-        />
-      )}
+      <Toast
+        message={toastMessage}
+        type={inCart ? "success" : "success"}
+        isVisible={showToast}
+        onClose={() => setShowToast(false)}
+      />
     </>
   );
 }
