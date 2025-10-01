@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Download, MessageCircle, Phone, BookOpen, Info, Check, DollarSign, CreditCard, Calculator, Search, Filter, Import as SortAsc, Dessert as SortDesc, Smartphone, FileText, Send, ShoppingCart, Upload, Image, Trash2, CreditCard as Edit, Save, Camera, Globe } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useAdmin } from '../context/AdminContext';
 import type { NovelCartItem } from '../types/movie';
 
 interface Novela {
@@ -24,6 +25,7 @@ interface NovelasModalProps {
 
 export function NovelasModal({ isOpen, onClose, onFinalizePedido }: NovelasModalProps) {
   const { getCurrentPrices, addNovel } = useCart();
+  const { state: adminState } = useAdmin();
   const [selectedNovelas, setSelectedNovelas] = useState<number[]>([]);
   const [novelasWithPayment, setNovelasWithPayment] = useState<Novela[]>([]);
   const [showNovelList, setShowNovelList] = useState(true);
@@ -34,7 +36,6 @@ export function NovelasModal({ isOpen, onClose, onFinalizePedido }: NovelasModal
   const [selectedStatus, setSelectedStatus] = useState('');
   const [sortBy, setSortBy] = useState<'titulo' | 'año' | 'capitulos' | 'pais'>('titulo');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [adminNovels, setAdminNovels] = useState<any[]>([]);
 
   const currentPrices = getCurrentPrices();
   const novelPricePerChapter = currentPrices.novelPricePerChapter;
@@ -42,63 +43,18 @@ export function NovelasModal({ isOpen, onClose, onFinalizePedido }: NovelasModal
   
   const phoneNumber = '+5354690878';
 
-  // Load novels from admin config
-  useEffect(() => {
-    const loadNovels = () => {
-      try {
-        const adminConfig = localStorage.getItem('system_config');
-        if (adminConfig) {
-          const config = JSON.parse(adminConfig);
-          if (config.novels) {
-            setAdminNovels(config.novels);
-          }
-        }
-      } catch (error) {
-        console.error('Error loading novels:', error);
-      }
-    };
-
-    loadNovels();
-
-    // Listen for admin updates
-    const handleAdminStateChange = (event: CustomEvent) => {
-      if (event.detail.type === 'novel_add' || 
-          event.detail.type === 'novel_update' || 
-          event.detail.type === 'novel_delete') {
-        loadNovels();
-      }
-    };
-
-    const handleAdminFullSync = (event: CustomEvent) => {
-      if (event.detail.config?.novels) {
-        setAdminNovels(event.detail.config.novels);
-      }
-    };
-
-    window.addEventListener('admin_state_change', handleAdminStateChange as EventListener);
-    window.addEventListener('admin_full_sync', handleAdminFullSync as EventListener);
-
-    return () => {
-      window.removeEventListener('admin_state_change', handleAdminStateChange as EventListener);
-      window.removeEventListener('admin_full_sync', handleAdminFullSync as EventListener);
-    };
-  }, []);
-
-  // Base novels list (can be empty if only using admin novels)
-  const defaultNovelas: Novela[] = [];
-
-  // Combine admin novels with default novels
-  const allNovelas = [...defaultNovelas, ...adminNovels.map(novel => ({
+  // Get novels directly from admin state (Supabase sync)
+  const allNovelas: Novela[] = (adminState.novels || []).map(novel => ({
     id: novel.id,
     titulo: novel.titulo,
     genero: novel.genero,
     capitulos: novel.capitulos,
     año: novel.año,
-    descripcion: novel.descripcion,
+    descripcion: novel.descripcion || '',
     pais: novel.pais || 'No especificado',
-    imagen: novel.imagen,
+    imagen: novel.imagen || '',
     estado: novel.estado || 'finalizada'
-  }))];
+  }));
 
   // Get unique values for filters
   const uniqueGenres = [...new Set(allNovelas.map(novela => novela.genero))].sort();
@@ -116,17 +72,17 @@ export function NovelasModal({ isOpen, onClose, onFinalizePedido }: NovelasModal
       paymentType: 'cash' as const
     }));
     setNovelasWithPayment(novelasWithDefaultPayment);
-    
+
     // Cargar novelas previamente seleccionadas del carrito
     const cartItems = JSON.parse(localStorage.getItem('movieCart') || '[]');
     const novelasEnCarrito = cartItems
       .filter((item: any) => item.type === 'novel')
       .map((item: any) => item.id);
-    
+
     if (novelasEnCarrito.length > 0) {
       setSelectedNovelas(novelasEnCarrito);
     }
-  }, [adminNovels]);
+  }, [adminState.novels]);
 
   // Filter novels function
   const getFilteredNovelas = () => {

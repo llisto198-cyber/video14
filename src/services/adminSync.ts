@@ -295,10 +295,51 @@ export class AdminSyncService {
     const exportData = {
       version: systemConfig?.version || '2.1.0',
       exportDate: new Date().toISOString(),
-      novels,
-      deliveryZones,
-      prices,
-      systemConfig
+      exportType: 'FULL_SYSTEM_BACKUP_V2',
+      description: 'Backup completo del sistema TV a la Carta con toda la configuración',
+      data: {
+        novels: novels.map(n => ({
+          id: n.id,
+          titulo: n.titulo,
+          genero: n.genero,
+          capitulos: n.capitulos,
+          año: n.año,
+          descripcion: n.descripcion || '',
+          pais: n.pais || '',
+          imagen: n.imagen || '',
+          estado: n.estado,
+          created_at: n.created_at,
+          updated_at: n.updated_at
+        })),
+        deliveryZones: deliveryZones.map(z => ({
+          id: z.id,
+          name: z.name,
+          cost: z.cost,
+          created_at: z.created_at,
+          updated_at: z.updated_at
+        })),
+        prices: prices ? {
+          movie_price: prices.movie_price,
+          series_price: prices.series_price,
+          novel_price_per_chapter: prices.novel_price_per_chapter,
+          transfer_fee_percentage: prices.transfer_fee_percentage
+        } : null,
+        systemConfig: systemConfig ? {
+          version: systemConfig.version,
+          auto_sync: systemConfig.auto_sync,
+          sync_interval: systemConfig.sync_interval,
+          enable_notifications: systemConfig.enable_notifications,
+          max_notifications: systemConfig.max_notifications,
+          settings: systemConfig.settings,
+          metadata: systemConfig.metadata
+        } : null
+      },
+      statistics: {
+        totalNovels: novels.length,
+        totalDeliveryZones: deliveryZones.length,
+        novelsInTransmission: novels.filter(n => n.estado === 'transmision').length,
+        novelsFinished: novels.filter(n => n.estado === 'finalizada').length
+      }
     };
 
     return JSON.stringify(exportData, null, 2);
@@ -308,31 +349,53 @@ export class AdminSyncService {
     try {
       const config = JSON.parse(configJson);
 
-      if (!config.novels || !config.deliveryZones || !config.prices) {
-        throw new Error('Configuración inválida');
+      // Support both old and new export formats
+      const data = config.data || config;
+
+      if (!data.novels || !data.deliveryZones || !data.prices) {
+        throw new Error('Configuración inválida: faltan datos requeridos');
       }
 
+      // Clear existing data
       await supabase.from('novels').delete().neq('id', 0);
 
-      for (const novel of config.novels) {
+      // Import novels
+      for (const novel of data.novels) {
         const { id, created_at, updated_at, ...novelData } = novel;
         await this.addNovel(novelData);
       }
 
+      // Clear and import delivery zones
       await supabase.from('delivery_zones').delete().neq('id', 0);
 
-      for (const zone of config.deliveryZones) {
+      for (const zone of data.deliveryZones) {
         const { id, created_at, updated_at, ...zoneData } = zone;
         await this.addDeliveryZone(zoneData);
       }
 
-      if (config.prices) {
-        const { id, updated_at, ...pricesData } = config.prices;
+      // Update prices
+      if (data.prices) {
+        const pricesData = {
+          movie_price: data.prices.movie_price || data.prices.moviePrice,
+          series_price: data.prices.series_price || data.prices.seriesPrice,
+          novel_price_per_chapter: data.prices.novel_price_per_chapter || data.prices.novelPricePerChapter,
+          transfer_fee_percentage: data.prices.transfer_fee_percentage || data.prices.transferFeePercentage
+        };
         await this.updatePrices(pricesData);
       }
 
-      if (config.systemConfig) {
-        await this.updateSystemConfig(config.systemConfig);
+      // Update system config
+      if (data.systemConfig) {
+        const configData = {
+          version: data.systemConfig.version,
+          auto_sync: data.systemConfig.auto_sync ?? data.systemConfig.autoSync,
+          sync_interval: data.systemConfig.sync_interval ?? data.systemConfig.syncInterval,
+          enable_notifications: data.systemConfig.enable_notifications ?? data.systemConfig.enableNotifications,
+          max_notifications: data.systemConfig.max_notifications ?? data.systemConfig.maxNotifications,
+          settings: data.systemConfig.settings,
+          metadata: data.systemConfig.metadata
+        };
+        await this.updateSystemConfig(configData);
       }
 
       return true;
